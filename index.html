@@ -80,7 +80,7 @@ resizeCanvas();
 // 화면 크기 변경 시 캔버스 크기 재조정
 window.addEventListener('resize', resizeCanvas);
 
-let dog = { x: 50, y: canvas.height - 70, width: 50, height: 50, vy: 0, jumping: false };
+let dog = { x: 50, y: canvas.height - 70, width: 50, height: 50, vy: 0, jumping: false, rotation: 0 };
 let gravity = 0.8;
 let obstacles = [];
 let snacks = [];
@@ -89,6 +89,19 @@ let speed = 5;
 let score = 0;
 let gameOver = false;
 let gameStarted = true;
+
+// 망고 이미지 로드
+let mangoImage = new Image();
+let imageLoaded = false;
+mangoImage.src = "https://raw.githubusercontent.com/parksiho/mango/main/mg1.png";
+mangoImage.onload = function() {
+  console.log("망고 이미지 로드 완료!");
+  imageLoaded = true;
+};
+mangoImage.onerror = function() {
+  console.log("망고 이미지 로드 실패 - 기본 모양으로 표시됩니다.");
+  imageLoaded = false;
+};
 
 // 구름 위치
 let clouds = [
@@ -100,7 +113,7 @@ let clouds = [
 // 게임 재시작 함수
 function restartGame() {
   // 모든 게임 상태 초기화
-  dog = { x: 50, y: canvas.height - 70, width: 50, height: 50, vy: 0, jumping: false };
+  dog = { x: 50, y: canvas.height - 70, width: 50, height: 50, vy: 0, jumping: false, rotation: 0 };
   obstacles = [];
   snacks = [];
   frame = 0;
@@ -143,14 +156,24 @@ function drawBackground() {
 }
 
 function drawDog() {
-  ctx.fillStyle = "#f4a460";
-  ctx.beginPath();
-  ctx.arc(dog.x + 25, dog.y + 25, 25, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = "black";
-  ctx.beginPath();
-  ctx.arc(dog.x + 35, dog.y + 15, 5, 0, Math.PI * 2);
-  ctx.fill();
+  if (imageLoaded && mangoImage.complete) {
+    // 이미지가 로드된 경우 회전하여 그리기
+    ctx.save();
+    ctx.translate(dog.x + dog.width/2, dog.y + dog.height/2);
+    ctx.rotate(dog.rotation);
+    ctx.drawImage(mangoImage, -dog.width/2, -dog.height/2, dog.width, dog.height);
+    ctx.restore();
+  } else {
+    // 이미지가 로드되지 않은 경우 기본 원형으로 표시
+    ctx.fillStyle = "#f4a460";
+    ctx.beginPath();
+    ctx.arc(dog.x + 25, dog.y + 25, 25, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "black";
+    ctx.beginPath();
+    ctx.arc(dog.x + 35, dog.y + 15, 5, 0, Math.PI * 2);
+    ctx.fill();
+  }
 }
 
 function drawObstacles() {
@@ -176,10 +199,20 @@ function update() {
     // 강아지 점프
     dog.y += dog.vy;
     dog.vy += gravity;
+    
+    // 점프 중일 때 회전 애니메이션 (한 바퀴 회전)
+    if (dog.jumping) {
+      dog.rotation += 0.3; // 회전 속도 조절
+      if (dog.rotation >= Math.PI * 2) {
+        dog.rotation = 0; // 한 바퀴 완료 후 초기화
+      }
+    }
+    
     if (dog.y >= canvas.height - 70) {
       dog.y = canvas.height - 70;
       dog.vy = 0;
       dog.jumping = false;
+      dog.rotation = 0; // 착지 시 회전 초기화
     }
 
     // 장애물 생성
@@ -231,6 +264,13 @@ function update() {
   ctx.fillStyle = "black";
   ctx.font = "20px Arial";
   ctx.fillText("점수: " + score, 10, 25);
+  
+  // 이미지 로드 상태 표시 (디버깅용)
+  if (!imageLoaded) {
+    ctx.fillStyle = "red";
+    ctx.font = "12px Arial";
+    ctx.fillText("이미지 로딩 중...", 10, canvas.height - 10);
+  }
 
   // 게임 오버 메시지 표시
   if (gameOver) {
